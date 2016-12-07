@@ -1,14 +1,10 @@
 (function(global, factory) {
-  //判断所在的环境，输出Promise
-  //如何判断amd和cmd
-  if(typeof module !== "undefined" && module.exports) {
-    module.exports = factory();
-  }else if(typeof define === "function" && (define.amd || define.cmd)) {
-    define(factory);
-  }else {
-    global.Promise = factory();
-  }
-})(global, function () {
+  typeof exports === 'object' && typeof module !== 'undefined'
+    ? module.exports = factory()
+    : typeof define === 'function' && define.amd
+      ? define(factory)
+      : (global.Vue = factory());
+})(this, function () {
   var State = {
     PENDING: 0,
     FULFILLED: 1,
@@ -21,9 +17,9 @@
     }
 
     var promise = this;
-    promise._state = State.PENDING;
+    promise.state = State.PENDING;
+    promise.value = undefined;
     promise._chain = [];
-    promise._value = undefined;
 
     invoke(promise, resolver);
   };
@@ -55,19 +51,19 @@
     }else if(x instanceof Promise) {
       //因为x是resolve传入的值，如果x是Promise对象，毫无疑问要根据x的状态获取真正传入的值
       //If x is a promise, adopt its state
-      if(x._state === State.PENDING) {
+      if(x.state === State.PENDING) {
         //If x is pending, promise must remain pending until x is fulfilled or rejected.
         x.then(function(value) {
           resolve(promise, value);
         }, function(value) {
           reject(promise, value);
         });
-      }else if(x._state === State.FULFILLED) {
+      }else if(x.state === State.FULFILLED) {
         //If/when x is fulfilled, fulfill promise with the same value.
-        fulfill(promise, x._value);
-      }else if(x._state === State.REJECTED) {
+        fulfill(promise, x.value);
+      }else if(x.state === State.REJECTED) {
         //If/when x is rejected, reject promise with the same reason.
-        reject(promise, x._value);
+        reject(promise, x.value);
       }
     }else if(isObjectOrFunction(x)) {
       //将then=x.then，传入的可能是一个thenable的对象，和传入promise相同调用then等待状态变化
@@ -113,34 +109,35 @@
     }
   }
   function reject(promise, value) {
-    if(promise._state === State.PENDING) {
-      promise._state = State.REJECTED;
-      promise._value = value;
+    if(promise.state === State.PENDING) {
+      promise.state = State.REJECTED;
+      promise.value = value;
       callChain(promise);
     }
   }
   function fulfill(promise, value) {
-    if(promise._state === State.PENDING) {
-      promise._state = State.FULFILLED;
-      promise._value = value;
+    if(promise.state === State.PENDING) {
+      promise.state = State.FULFILLED;
+      promise.value = value;
       callChain(promise);
     }
   }
 
   function callChain(promise) {
-    if(promise._state !== State.PENDING) {
+    if(promise.state !== State.PENDING) {
       var chain = promise._chain;
       async(function() {
         while(chain.length > 0) {
+          console.log(promise);
           var item = chain.shift();
           var value = null;
           try{
-            if(promise._state === State.FULFILLED) {
+            if(promise.state === State.FULFILLED) {
               //If onFulfilled is not a function and promise1 is fulfilled, promise2 must be fulfilled with the same value as promise1.
-              value = (item.onFulfilled? item.onFulfilled: function(value) {return value;})(promise._value);
-            }else if(promise._state === State.REJECTED) {
+              value = (item.onFulfilled? item.onFulfilled: function(value) {return value;})(promise.value);
+            }else if(promise.state === State.REJECTED) {
               //If onRejected is not a function and promise1 is rejected, promise2 must be rejected with the same reason as promise1.
-              value = (item.onRejected? item.onRejected: function(value) {throw value;})(promise._value);
+              value = (item.onRejected? item.onRejected: function(value) {throw value;})(promise.value);
             }
           }catch (exception) {
             //If either onFulfilled or onRejected throws an exception e, promise2 must be rejected with e as the reason.
@@ -267,6 +264,30 @@
         promises[i].then(thenResolve, thenReject);
       }
     });
+  };
+
+  // done仍然是一个thenable方法，但是他会把本次操作产生的错误抛出
+  Promise.prototype.done = function (onFulfilled, onRejected) {
+    this.then(onFulfilled, onRejected)
+      .catch(function (reason) {
+        async(function () {
+          throw reason;
+        }, 0);
+      });
+  };
+
+  // 无论上一个的结果是resolve还是reject，都会执行回调
+  Promise.prototype.finally = function (callback) {
+    return this.then(
+      function (value) {
+        Promise.resolve(callback())
+          .then(function () { return value; });
+      },
+      function (reason) {
+        Promise.resolve(callback())
+          .then(function () { throw reason; });
+      }
+    );
   };
 
   return Promise;
