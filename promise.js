@@ -159,7 +159,7 @@
     return (typeof obj === "object" && obj !== null) || isFunction(obj);
   }
   function isArray(arr) {
-    return arr instanceof Array;
+    return Object.prototype.toString.call(obj) === '[object Array]';
   }
 
   Promise.prototype.then = function(onFulfilled, onRejected) {
