@@ -128,7 +128,6 @@
       var chain = promise._chain;
       async(function() {
         while(chain.length > 0) {
-          console.log(promise);
           var item = chain.shift();
           var value = null;
           try{
