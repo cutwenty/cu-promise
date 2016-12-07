@@ -184,6 +184,7 @@
   };
 
   //添加es6的新特性
+  // 将value用Promise进行包装，返回一个fullfilled 的Promise对象
   Promise.resolve = function(value) {
     //如果是promise对象，或thenable对象
     if(value !== null && value instanceof Promise) {
@@ -198,14 +199,24 @@
       resolve(value);
     });
   };
+
+  // 将value用Promise进行包装，返回一个rejected 的Promise对象
   Promise.reject = function(value) {
     return new Promise(function(resolve, reject) {
       reject(value);
     });
   };
+
+  // then(null, func)的简写版，
+  // 由于promiseA+ 对待错误的方针是错误处理函数执行完，就是默认没有问题的
+  // 因此对待reject，使用catch比较好
   Promise.prototype.catch = function(onRejected) {
     return this.then(null, onRejected);
   };
+
+  // 传入一个promise数组（如果不是数组，用Promise转化成Promise），返回一个promise
+  // 1、只有数组中的promise全部resolve后，整体的promise才resolve
+  // 2、只要有一个promise reject了，整体的promise就reject
   Promise.all = function(promises) {
     //1、参数必须是数组
     if(!isArray(promises)) {
@@ -234,6 +245,9 @@
       }
     });
   };
+
+  // 传入一个promise数组（如果不是数组，用Promise转化成Promise），返回一个promise
+  // 和all不同，只要有一个的状态改变了，整体的promise就会改变相同状态
   Promise.race = function(promises) {
     if(!isArray(promises)) {
       throw new TypeError("promises must be Array!");
