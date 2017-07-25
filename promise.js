@@ -3,7 +3,7 @@
     ? module.exports = factory()
     : typeof define === 'function' && define.amd
       ? define(factory)
-      : (global.Vue = factory());
+      : (global.Promise = factory());
 })(this, function () {
   var State = {
     PENDING: 0,
